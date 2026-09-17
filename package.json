@@ -1,0 +1,12 @@
+{
+	"name": "github-workflows",
+	"version": "0.1.0",
+	"private": true,
+	"description": "Reusable GitHub Actions workflows and actions for Solidity and Foundry projects.",
+	"author": "fomoweth",
+	"license": "MIT",
+	"main": "index.js",
+	"scripts": {
+		"test": "echo \"Error: no test specified\" && exit 1"
+	}
+}
