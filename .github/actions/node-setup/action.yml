@@ -1,0 +1,162 @@
+name: Set up Node.js environment
+
+description: Detects the package manager and Node.js version, sets up the runtime, and installs dependencies.
+
+outputs:
+  package-manager:
+    description: Detected package manager.
+    value: ${{ steps.package-manager.outputs.package-manager }}
+  node-version:
+    description: Resolved Node.js version.
+    value: ${{ steps.node-version.outputs.node-version }}
+  node-version-file:
+    description: Detected Node.js version file.
+    value: ${{ steps.node-version-file.outputs.node-version-file }}
+
+runs:
+  using: composite
+  steps:
+    - name: Determine package manager
+      id: package-manager
+      shell: bash
+      run: |
+        package_manager=""
+
+        if [[ -f package.json ]]; then
+          declared_package_manager="$(jq -r '.packageManager // empty' package.json)"
+
+          if [[ -n "$declared_package_manager" ]]; then
+            package_manager="${declared_package_manager%%@*}"
+          fi
+        fi
+
+        if [[ -z "$package_manager" ]]; then
+          lockfile_count=0
+
+          if [[ -f package-lock.json || -f npm-shrinkwrap.json ]]; then
+            package_manager="npm"
+            ((lockfile_count += 1))
+          fi
+
+          if [[ -f yarn.lock ]]; then
+            package_manager="yarn"
+            ((lockfile_count += 1))
+          fi
+
+          if [[ -f pnpm-lock.yaml ]]; then
+            package_manager="pnpm"
+            ((lockfile_count += 1))
+          fi
+
+          if (( lockfile_count == 0 )); then
+            echo "::error::Unable to determine package manager."
+            exit 1
+          fi
+
+          if (( lockfile_count > 1 )); then
+            echo "::error::Multiple package-manager lockfiles found."
+            exit 1
+          fi
+        fi
+
+        case "$package_manager" in
+          npm|yarn|pnpm)
+            ;;
+          *)
+            echo "::error::Unsupported package manager: $package_manager"
+            exit 1
+            ;;
+        esac
+
+        echo "package-manager=$package_manager" >> "$GITHUB_OUTPUT"
+
+    - name: Determine Node.js version
+      id: node-version-file
+      shell: bash
+      run: |
+        node_version_file=""
+
+        if [[ -f .nvmrc ]]; then
+          node_version_file=".nvmrc"
+        elif [[ -f .node-version ]]; then
+          node_version_file=".node-version"
+        elif [[ -f .tool-versions ]]; then
+          node_version_file=".tool-versions"
+        elif [[ -f package.json ]]; then
+          node_version_file="package.json"
+        fi
+
+        if [[ -z "$node_version_file" ]]; then
+          echo "::error::Unable to determine Node.js version."
+          exit 1
+        fi
+
+        echo "node-version-file=$node_version_file" >> "$GITHUB_OUTPUT"
+
+    - name: Resolve Node.js version
+      id: node-version
+      shell: bash
+      env:
+        NODE_VERSION_FILE: ${{ steps.node-version-file.outputs.node-version-file }}
+      run: |
+        case "$NODE_VERSION_FILE" in
+          .nvmrc|.node-version)
+            node_version="$(tr -d '[:space:]' < "$NODE_VERSION_FILE")"
+            ;;
+
+          .tool-versions)
+            node_version="$(awk '$1 == "nodejs" { print $2; exit }' "$NODE_VERSION_FILE")"
+            ;;
+
+          package.json)
+            node_version="$(
+              jq -r '
+                .volta.node //
+                (
+                  .devEngines.runtime
+                  | if type == "array" then
+                      map(select(.name == "node"))[0].version
+                    elif type == "object" and .name == "node" then
+                      .version
+                    else
+                      empty
+                    end
+                ) //
+                .engines.node //
+                empty
+              ' package.json
+            )"
+            ;;
+        esac
+
+        if [[ -z "$node_version" || "$node_version" == "null" ]]; then
+          echo "::error::Unable to resolve Node.js version from $NODE_VERSION_FILE."
+          exit 1
+        fi
+
+        echo "node-version=$node_version" >> "$GITHUB_OUTPUT"
+
+    - name: Install pnpm package manager
+      if: ${{ steps.package-manager.outputs.package-manager == 'pnpm' }}
+      uses: pnpm/setup@v2
+      with:
+        runtime: node@${{ steps.node-version.outputs.node-version }}
+        cache: true
+        install: true
+
+    - name: Install Node.js
+      if: ${{ steps.package-manager.outputs.package-manager != 'pnpm' }}
+      uses: actions/setup-node@v7
+      with:
+        node-version-file: ${{ steps.node-version.outputs.node-version-file }}
+        cache: ${{ steps.package-manager.outputs.package-manager }}
+
+    - name: Install dependencies
+      if: ${{ steps.package-manager.outputs.package-manager == 'npm' }}
+      shell: bash
+      run: npm ci --prefer-offline --no-audit
+
+    - name: Install dependencies
+      if: ${{ steps.package-manager.outputs.package-manager == 'yarn' }}
+      shell: bash
+      run: yarn install --frozen-lockfile --prefer-offline
