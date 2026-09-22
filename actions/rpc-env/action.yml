@@ -1,0 +1,6 @@
+name: RPC Environment
+description: Configure chain-specific RPC and API environment variables.
+
+runs:
+  using: node24
+  main: dist/index.js
