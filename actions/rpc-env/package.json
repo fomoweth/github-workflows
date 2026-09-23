@@ -1,15 +1,16 @@
 {
 	"name": "@fomoweth/rpc-env",
 	"private": true,
-	"type": "module",
 	"scripts": {
 		"build": "tsup",
+		"test": "vitest run",
 		"typecheck": "tsc --noEmit"
 	},
 	"dependencies": {
 		"@actions/core": "^3.0.0"
 	},
 	"devDependencies": {
-		"tsup": "^8.5.1"
+		"tsup": "^8.5.1",
+		"vitest": "^3.2.4"
 	}
 }
