@@ -6,6 +6,7 @@ export default defineConfig({
 	target: "node24",
 	platform: "node",
 	bundle: true,
+	noExternal: ["@actions/core"],
 	splitting: false,
 	sourcemap: false,
 	clean: true,
