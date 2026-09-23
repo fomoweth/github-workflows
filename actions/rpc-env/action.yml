@@ -1,6 +1,14 @@
 name: RPC Environment
 description: Configure chain-specific RPC and API environment variables.
 
+inputs:
+  alchemy-api-key:
+    description: Alchemy API key.
+    required: false
+  infura-api-key:
+    description: Infura API key.
+    required: false
+
 runs:
   using: node24
   main: dist/index.js
