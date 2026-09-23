@@ -1,7 +1,6 @@
 {
 	"name": "@fomoweth/rpc-env",
 	"private": true,
-	"type": "module",
 	"scripts": {
 		"build": "tsup",
 		"test": "vitest run",
