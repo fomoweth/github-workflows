@@ -1,0 +1,61 @@
+name: Foundry Continuous Integration
+
+on:
+  workflow_call:
+    inputs:
+      foundry-version:
+        description: Foundry version to install.
+        type: string
+        default: stable
+      foundry-profile:
+        description: Foundry profile to use.
+        type: string
+        default: default
+    secrets:
+      alchemy-api-key:
+        description: Alchemy API key used to configure RPC endpoints.
+        required: false
+      infura-api-key:
+        description: Infura API key used to configure RPC endpoints.
+        required: false
+
+permissions: {}
+
+jobs:
+  foundry-ci:
+    name: Foundry CI
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    env:
+      FOUNDRY_PROFILE: ${{ inputs.foundry-profile }}
+
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+          submodules: recursive
+
+      - name: Install Foundry
+        uses: foundry-rs/foundry-toolchain@v1
+        with:
+          version: ${{ inputs.foundry-version }}
+
+      - name: Show Forge Version
+        run: forge --version
+
+      - name: Configure RPC Environment
+        uses: fomoweth/github-workflows/actions/rpc-env@main
+        with:
+          alchemy-api-key: ${{ secrets.alchemy-api-key }}
+          infura-api-key: ${{ secrets.infura-api-key }}
+
+      - name: Run Forge Fmt
+        run: forge fmt --check
+
+      - name: Run Forge Build
+        run: forge build --sizes
+
+      - name: Run Forge Tests
+        run: forge test -vvv
