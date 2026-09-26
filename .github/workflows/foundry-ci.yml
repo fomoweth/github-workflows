@@ -1,4 +1,4 @@
-name: Foundry Continuous Integration
+name: Foundry CI
 
 on:
   workflow_call:
@@ -23,7 +23,7 @@ permissions: {}
 
 jobs:
   foundry-ci:
-    name: Foundry CI
+    name: Foundry Continuous Integration
     runs-on: ubuntu-latest
     permissions:
       contents: read
